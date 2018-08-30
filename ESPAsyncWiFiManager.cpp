@@ -443,7 +443,7 @@ boolean  AsyncWiFiManager::startConfigPortal(char const *apName, char const *apP
   while (_configPortalTimeout == 0 || millis() < _configPortalStart + _configPortalTimeout) {
     //DNS
     //dnsServer->processNextRequest();
-
+    loop(); // call loop to handle DNS if needed (WZ)
     //
     //  we should do a scan every so often here
     //
@@ -466,7 +466,7 @@ boolean  AsyncWiFiManager::startConfigPortal(char const *apName, char const *apP
         DEBUG_WM(F("Failed to connect."));
       } else {
         //connected
-        WiFi.mode(WIFI_STA);
+        //WiFi.mode(WIFI_STA); // removed... Can't report info if this drops SoftAP (WZ)
         //notify that configuration has changed and any optional parameters should be saved
         if ( _savecallback != NULL) {
           //todo: check if any custom parameters actually exist, and check if they really changed maybe
@@ -487,7 +487,10 @@ boolean  AsyncWiFiManager::startConfigPortal(char const *apName, char const *apP
     }
     yield();
   }
-
+  DEBUG_WM("check IP");
+  DEBUG_WM(WiFi.localIP().toString());
+  delay(8000);  //Extra Delay to allow time for handleinfo to complete before resetting server (WZ)
+  WiFi.mode(WIFI_STA);  //okay to kill Access Point now as info page should have been delivered.  (this could be more synchronous)
   server->reset();
   #ifdef USE_EADNS
   *dnsServer=AsyncDNSServer();
@@ -849,7 +852,7 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request) {
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
-  page += F("<meta http-equiv=\"refresh\" content=\"5; url=/i\">");
+  page += F("<meta http-equiv=\"refresh\" content=\"10; url=/i\">");  //Doubled delay before refresh to allow time to connect (WZ)
   page += FPSTR(HTTP_HEAD_END);
   page += FPSTR(HTTP_SAVED);
   page += FPSTR(HTTP_END);
@@ -898,7 +901,7 @@ String AsyncWiFiManager::infoAsString()
   page += F("<dt>Station SSID</dt><dd>");
   page += WiFi.SSID();
   page += F("</dd>");
-  page += F("<dt>Station IP</dt><dd>");
+  page += F("<dt>Station IP <i>(Use to connect to local Device)</i></dt><dd>");
   page += WiFi.localIP().toString();
   page += F("</dd>");
   page += F("<dt>Station MAC</dt><dd>");
